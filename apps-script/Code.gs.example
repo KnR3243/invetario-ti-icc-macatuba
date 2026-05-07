@@ -1,0 +1,467 @@
+const SHEET_NAME = 'Página1';
+const API_TOKEN = 'COLE_AQUI_UM_TOKEN_FORTE_E_NAO_COMITE_NO_GITHUB';
+
+const ALERTA_EMAILS = [
+  'email1@seudominio.com.br',
+  'email2@seudominio.com.br'
+];
+
+const ESTOQUE_MINIMO = [
+  {
+    id: 'kit',
+    titulo: 'Mouse/Teclado',
+    minimo: 5,
+    include: ['kit'],
+    fallbackAll: ['teclado', 'mouse'],
+    exclude: []
+  },
+  {
+    id: 'mousepad',
+    titulo: 'Mousepad',
+    minimo: 5,
+    include: ['mousepad'],
+    exclude: []
+  },
+  {
+    id: 'headset',
+    titulo: 'Headset',
+    minimo: 5,
+    include: ['headset', 'fone'],
+    exclude: []
+  },
+  {
+    id: 'suporte-notebook',
+    titulo: 'Suporte Notebook',
+    minimo: 4,
+    include: ['suporte notebook', 'base notebook', 'suporte para notebook', 'suportes de notebook'],
+    exclude: []
+  },
+  {
+    id: 'apoio-pulso',
+    titulo: 'Apoio de Pulso',
+    minimo: 3,
+    include: ['apoio pulso', 'apoio de pulso'],
+    exclude: []
+  },
+  {
+    id: 'monitor',
+    titulo: 'Monitor',
+    minimo: 3,
+    include: ['monitor', 'tela'],
+    exclude: []
+  },
+  {
+    id: 'notebook',
+    titulo: 'Notebook',
+    minimo: 2,
+    include: ['notebook', 'laptop'],
+    exclude: ['suporte', 'base', 'apoio']
+  }
+];
+
+function doGet(e) {
+  return responderJson(() => {
+    validarToken(e);
+
+    const action = String(e && e.parameter && e.parameter.action || 'listar');
+
+    if (action === 'listar') {
+      const itens = obterDados();
+      verificarEEnviarAlertaEstoqueMinimo(itens);
+      return itens;
+    }
+
+    if (action === 'alertasEstoque') {
+      const itens = obterDados();
+      return calcularAlertasEstoqueMinimo(itens);
+    }
+
+    if (action === 'enviarAlertasEstoque') {
+      const itens = obterDados();
+      return verificarEEnviarAlertaEstoqueMinimo(itens, true);
+    }
+
+    throw new Error('Ação GET inválida.');
+  });
+}
+
+function doPost(e) {
+  return responderJson(() => {
+    validarToken(e);
+
+    const payload = JSON.parse(e.postData && e.postData.contents || '{}');
+    const action = String(payload.action || '');
+
+    if (action === 'criar') {
+      const salvo = salvarItem(payload.item || {}, false);
+      verificarEEnviarAlertaEstoqueMinimo(obterDados());
+      return salvo;
+    }
+
+    if (action === 'atualizar') {
+      const salvo = salvarItem(payload.item || {}, true);
+      verificarEEnviarAlertaEstoqueMinimo(obterDados());
+      return salvo;
+    }
+
+    if (action === 'enviarAlertasEstoque') {
+      return verificarEEnviarAlertaEstoqueMinimo(obterDados(), true);
+    }
+
+    throw new Error('Ação POST inválida.');
+  });
+}
+
+function responderJson(callback) {
+  try {
+    const resultado = callback();
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: true, data: resultado }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: false, error: String(err && err.message ? err.message : err) }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function validarToken(e) {
+  const token = String((e && e.parameter && e.parameter.token) || '');
+  if (token !== API_TOKEN) {
+    throw new Error('Token inválido.');
+  }
+}
+
+function getPlanilha() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = spreadsheet.getSheetByName(SHEET_NAME);
+
+  if (!sheet) {
+    throw new Error('Aba não encontrada: ' + SHEET_NAME);
+  }
+
+  return sheet;
+}
+
+function garantirColunas(sheet) {
+  if (sheet.getLastRow() === 0 || sheet.getLastColumn() === 0) {
+    sheet.appendRow([
+      'id',
+      'item',
+      'marca',
+      'modelo',
+      'service_tag',
+      'serial_number',
+      'patrimonio',
+      'fonte',
+      'observação',
+      'quantidade_unidades',
+      'status_operacional',
+      'local',
+      'historico'
+    ]);
+  }
+
+  let headers = sheet
+    .getRange(1, 1, 1, sheet.getLastColumn())
+    .getValues()[0]
+    .map(h => String(h || '').trim().toLowerCase());
+
+  const obrigatorias = [
+    'id',
+    'item',
+    'marca',
+    'modelo',
+    'service_tag',
+    'serial_number',
+    'patrimonio',
+    'fonte',
+    'observação',
+    'quantidade_unidades',
+    'status_operacional',
+    'local',
+    'historico'
+  ];
+
+  obrigatorias.forEach(coluna => {
+    if (!headers.includes(coluna)) {
+      sheet.getRange(1, headers.length + 1).setValue(coluna);
+      headers.push(coluna);
+    }
+  });
+
+  return headers;
+}
+
+function obterDados() {
+  const sheet = getPlanilha();
+  const headers = garantirColunas(sheet);
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+
+  if (lastRow < 2) return [];
+
+  const values = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+
+  return values
+    .map((row, index) => {
+      const obj = {};
+
+      headers.forEach((header, colIndex) => {
+        obj[header] = row[colIndex] !== undefined ? row[colIndex] : '';
+      });
+
+      obj.status_operacional = normalizarStatusOperacional(obj.status_operacional);
+      obj.quantidade_unidades = quantidadeAtivo(obj);
+      obj._rowNumber = index + 2;
+
+      return obj;
+    })
+    .filter(item => String(item.id || '').trim() !== '' || String(item.item || '').trim() !== '');
+}
+
+function salvarItem(item, atualizar) {
+  const sheet = getPlanilha();
+  const headers = garantirColunas(sheet);
+
+  item = item || {};
+  item.status_operacional = normalizarStatusOperacional(item.status_operacional);
+  item.local = String(item.local || '').trim() || 'Não informado';
+  item.quantidade_unidades = quantidadeAtivo(item);
+
+  if (!item.id || String(item.id).trim() === '') {
+    item.id = Utilities.getUuid().split('-')[0];
+  }
+
+  if (!item.historico) {
+    item.historico = getDataFormatada() + ' - Registro criado: ' + item.status_operacional + ' em ' + item.local;
+  }
+
+  const rowNumber = Number(item._rowNumber || 0);
+
+  if (atualizar && rowNumber >= 2) {
+    const idIndex = headers.indexOf('id');
+    const idAtual = String(sheet.getRange(rowNumber, idIndex + 1).getValue() || '').trim();
+
+    if (idAtual === String(item.id).trim()) {
+      const linhaAtualizada = headers.map(h => item[h] !== undefined ? item[h] : '');
+      sheet.getRange(rowNumber, 1, 1, headers.length).setValues([linhaAtualizada]);
+      SpreadsheetApp.flush();
+      item._rowNumber = rowNumber;
+      return item;
+    }
+  }
+
+  if (atualizar) {
+    const data = sheet.getDataRange().getValues();
+    const idIndex = headers.indexOf('id');
+
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][idIndex] || '').trim() === String(item.id).trim()) {
+        const linhaAtualizada = headers.map(h => item[h] !== undefined ? item[h] : '');
+        sheet.getRange(i + 1, 1, 1, headers.length).setValues([linhaAtualizada]);
+        SpreadsheetApp.flush();
+        item._rowNumber = i + 1;
+        return item;
+      }
+    }
+  }
+
+  const novaLinha = headers.map(h => item[h] !== undefined ? item[h] : '');
+  sheet.appendRow(novaLinha);
+  SpreadsheetApp.flush();
+
+  item._rowNumber = sheet.getLastRow();
+  return item;
+}
+
+function normalizarStatusOperacional(valor) {
+  const status = String(valor || '').trim().toLowerCase();
+
+  if (status === 'disponivel' || status === 'disponível' || status === 'em uso' || status === 'uso' || status === 'usando') return 'Em uso';
+  if (status === 'livre' || status === 'estoque' || status === 'em estoque') return 'Livre';
+  if (status === 'manutencao' || status === 'manutenção' || status === 'manutencao tecnica' || status === 'manutenção técnica') return 'Manutenção';
+  if (status === 'sem local' || status === 'não informado' || status === 'nao informado') return 'Sem local';
+
+  return valor ? String(valor).trim() : 'Livre';
+}
+
+function textoBusca(valor) {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function quantidadeAtivo(obj) {
+  const qtd = parseInt(obj && (obj.quantidade_unidades || obj.quantidade) || '1', 10);
+  return Number.isFinite(qtd) && qtd > 0 ? qtd : 1;
+}
+
+function itemPertenceCategoria(obj, categoria) {
+  const item = textoBusca(obj && obj.item);
+  if (!item) return false;
+
+  const temInclude = (categoria.include || []).some(t => item.includes(textoBusca(t)));
+  const temFallback = (categoria.fallbackAll || []).length
+    ? categoria.fallbackAll.every(t => item.includes(textoBusca(t)))
+    : false;
+  const temExclusao = (categoria.exclude || []).some(t => item.includes(textoBusca(t)));
+
+  return (temInclude || temFallback) && !temExclusao;
+}
+
+function calcularAlertasEstoqueMinimo(itens) {
+  const dados = itens || obterDados();
+
+  return ESTOQUE_MINIMO
+    .map(cat => {
+      const relacionados = dados.filter(item => itemPertenceCategoria(item, cat));
+      const livres = relacionados
+        .filter(item => normalizarStatusOperacional(item.status_operacional) === 'Livre')
+        .reduce((acc, item) => acc + quantidadeAtivo(item), 0);
+
+      const total = relacionados.reduce((acc, item) => acc + quantidadeAtivo(item), 0);
+      const emUso = relacionados
+        .filter(item => normalizarStatusOperacional(item.status_operacional) === 'Em uso')
+        .reduce((acc, item) => acc + quantidadeAtivo(item), 0);
+
+      return {
+        id: cat.id,
+        item: cat.titulo,
+        minimo: cat.minimo,
+        livre: livres,
+        em_uso: emUso,
+        total: total,
+        faltando: Math.max(0, cat.minimo - livres),
+        abaixo: livres < cat.minimo
+      };
+    })
+    .filter(alerta => alerta.abaixo);
+}
+
+
+function montarPreviewAssuntoAlertas(alertas) {
+  const nomes = (alertas || [])
+    .map(a => String(a.item || '').trim())
+    .filter(Boolean);
+
+  if (!nomes.length) return 'sem itens críticos';
+
+  const limite = 3;
+  const principais = nomes.slice(0, limite).join(', ');
+  const restantes = nomes.length - limite;
+
+  return restantes > 0
+    ? principais + ' +' + restantes + ' item(ns)'
+    : principais;
+}
+
+function verificarEEnviarAlertaEstoqueMinimo(itens, forcarEnvio) {
+  const alertas = calcularAlertasEstoqueMinimo(itens);
+
+  if (!alertas.length) {
+    PropertiesService.getScriptProperties().deleteProperty('estoque_minimo_alerta_signature');
+    return {
+      enviado: false,
+      motivo: 'Nenhum item abaixo do estoque mínimo.',
+      alertas: []
+    };
+  }
+
+  const signature = alertas
+    .map(a => a.id + ':' + a.livre + '/' + a.minimo)
+    .sort()
+    .join('|');
+
+  const props = PropertiesService.getScriptProperties();
+  const signatureAnterior = props.getProperty('estoque_minimo_alerta_signature') || '';
+  const ultimoEnvio = Number(props.getProperty('estoque_minimo_alerta_ts') || 0);
+  const agora = Date.now();
+  const intervaloMs = 12 * 60 * 60 * 1000;
+
+  if (!forcarEnvio && signature === signatureAnterior && agora - ultimoEnvio < intervaloMs) {
+    return {
+      enviado: false,
+      motivo: 'Alerta já enviado recentemente.',
+      alertas: alertas
+    };
+  }
+
+  const previewAssunto = montarPreviewAssuntoAlertas(alertas);
+  const assunto = '[Inventário TI] Estoque baixo: ' + previewAssunto;
+  const linhasTexto = alertas.map(a => '- ' + a.item + ': ' + a.livre + ' livre(s) / mínimo ' + a.minimo + ' | faltando ' + a.faltando);
+  const corpo = [
+    'Olá,',
+    '',
+    'Resumo: ' + previewAssunto,
+    '',
+    'Os seguintes itens estão abaixo do estoque mínimo no Inventário TI:',
+    '',
+    linhasTexto.join('\n'),
+    '',
+    'Data da verificação: ' + getDataFormatada(),
+    '',
+    'Mensagem automática do Inventário TI.'
+  ].join('\n');
+
+  const linhasHtml = alertas.map(a =>
+    '<tr>' +
+      '<td style="padding:8px 10px;border-bottom:1px solid #e5e7eb"><strong>' + escapeHtmlEmail(a.item) + '</strong></td>' +
+      '<td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center">' + a.livre + '</td>' +
+      '<td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center">' + a.minimo + '</td>' +
+      '<td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center;color:#dc2626;font-weight:700">' + a.faltando + '</td>' +
+    '</tr>'
+  ).join('');
+
+  const htmlBody =
+    '<div style="display:none;max-height:0;overflow:hidden;color:transparent;opacity:0">' +
+      'Estoque baixo: ' + escapeHtmlEmail(previewAssunto) +
+    '</div>' +
+    '<div style="font-family:Arial,sans-serif;color:#111827">' +
+      '<h2 style="margin:0 0 10px">Inventário TI - Estoque mínimo</h2>' +
+      '<p><strong>Resumo:</strong> ' + escapeHtmlEmail(previewAssunto) + '</p>' +
+      '<p>Os seguintes itens estão abaixo do estoque mínimo:</p>' +
+      '<table style="border-collapse:collapse;width:100%;max-width:680px;border:1px solid #e5e7eb">' +
+        '<thead><tr style="background:#f3f4f6">' +
+          '<th style="padding:8px 10px;text-align:left">Item</th>' +
+          '<th style="padding:8px 10px;text-align:center">Livre</th>' +
+          '<th style="padding:8px 10px;text-align:center">Mínimo</th>' +
+          '<th style="padding:8px 10px;text-align:center">Faltando</th>' +
+        '</tr></thead>' +
+        '<tbody>' + linhasHtml + '</tbody>' +
+      '</table>' +
+      '<p style="margin-top:16px;color:#6b7280;font-size:13px">Verificação: ' + getDataFormatada() + '</p>' +
+      '<p style="color:#6b7280;font-size:13px">Mensagem automática do Inventário TI.</p>' +
+    '</div>';
+
+  MailApp.sendEmail({
+    to: ALERTA_EMAILS.join(','),
+    subject: assunto,
+    body: corpo,
+    htmlBody: htmlBody
+  });
+
+  props.setProperty('estoque_minimo_alerta_signature', signature);
+  props.setProperty('estoque_minimo_alerta_ts', String(agora));
+
+  return {
+    enviado: true,
+    motivo: 'Alerta enviado.',
+    alertas: alertas
+  };
+}
+
+function escapeHtmlEmail(valor) {
+  return String(valor || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function getDataFormatada() {
+  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm');
+}
