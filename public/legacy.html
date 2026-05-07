@@ -2250,7 +2250,306 @@
             }
         }
 
-    </style>
+    
+
+        /* =========================================================
+           RESPONSIVO FORTE TABLET / CELULAR - PAINEL, MODAIS E IFRAME
+           Esta camada fica por ultimo no CSS para evitar corte inferior
+           em Chrome/Android, tablets e navegadores com barra dinâmica.
+           ========================================================= */
+        :root {
+            --mobile-bottom-space: 96px;
+            --app-height: 100dvh;
+        }
+
+        @supports not (height: 100dvh) {
+            :root {
+                --app-height: 100vh;
+            }
+        }
+
+        html,
+        body {
+            width: 100%;
+            min-height: var(--app-height);
+            overflow-x: hidden;
+        }
+
+        body.panel-open,
+        body.modal-open {
+            overflow: hidden !important;
+            touch-action: none;
+        }
+
+        @media (max-width: 1024px), (pointer: coarse) {
+            :root {
+                --mobile-bottom-space: 112px;
+            }
+
+            .panel-backdrop.active,
+            .modal-overlay.active,
+            .scanner-modal.active,
+            .scanner-overlay.active {
+                overscroll-behavior: contain;
+            }
+
+            .side-panel {
+                position: fixed !important;
+                inset: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                top: 0 !important;
+                bottom: auto !important;
+                width: 100vw !important;
+                max-width: 100vw !important;
+                height: var(--app-height) !important;
+                min-height: var(--app-height) !important;
+                max-height: var(--app-height) !important;
+                border-left: 0 !important;
+                border-radius: 0 !important;
+                display: grid !important;
+                grid-template-rows: auto minmax(0, 1fr) auto !important;
+                overflow: hidden !important;
+                transform: translateX(105%);
+            }
+
+            .side-panel.open {
+                transform: translateX(0) !important;
+            }
+
+            .panel-header {
+                grid-row: 1;
+                flex-shrink: 0 !important;
+                padding: 14px 16px 12px !important;
+                min-height: auto !important;
+            }
+
+            .panel-title-block h2 {
+                font-size: 1rem !important;
+                line-height: 1.25 !important;
+            }
+
+            .panel-title-block p {
+                font-size: 0.76rem !important;
+                line-height: 1.35 !important;
+            }
+
+            .panel-close {
+                width: 40px !important;
+                height: 40px !important;
+                border-radius: 14px !important;
+            }
+
+            .panel-body {
+                grid-row: 2;
+                flex: unset !important;
+                min-height: 0 !important;
+                height: auto !important;
+                overflow-y: auto !important;
+                overscroll-behavior: contain;
+                -webkit-overflow-scrolling: touch;
+                padding: 14px 14px 18px !important;
+                gap: 14px !important;
+                align-content: start !important;
+            }
+
+            .asset-hero {
+                gap: 12px !important;
+            }
+
+            .asset-hero-main {
+                gap: 12px !important;
+            }
+
+            .hero-icon {
+                width: 48px !important;
+                height: 48px !important;
+                border-radius: 16px !important;
+                font-size: 1.2rem !important;
+            }
+
+            .hero-name {
+                font-size: 1.15rem !important;
+                line-height: 1.25 !important;
+            }
+
+            .hero-model {
+                font-size: 0.78rem !important;
+            }
+
+            .panel-section {
+                border-radius: 18px !important;
+                padding: 14px !important;
+            }
+
+            .section-title {
+                font-size: 0.69rem !important;
+                margin-bottom: 12px !important;
+            }
+
+            .detail-grid {
+                grid-template-columns: 1fr !important;
+                gap: 12px !important;
+            }
+
+            .detail-item label {
+                font-size: 0.64rem !important;
+            }
+
+            .detail-item span,
+            .detail-item p,
+            .tl-title {
+                font-size: 0.84rem !important;
+            }
+
+            .panel-footer {
+                grid-row: 3;
+                position: relative !important;
+                bottom: auto !important;
+                left: auto !important;
+                right: auto !important;
+                z-index: 8 !important;
+                flex-shrink: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 10px !important;
+                max-height: 46vh !important;
+                overflow-y: auto !important;
+                overscroll-behavior: contain;
+                -webkit-overflow-scrolling: touch;
+                padding: 12px 14px calc(var(--mobile-bottom-space) + env(safe-area-inset-bottom, 0px)) !important;
+                background: linear-gradient(180deg, rgba(10, 10, 10, 0.96), var(--bg-panel) 28%) !important;
+                border-top: 1px solid var(--border-color) !important;
+                box-shadow: 0 -18px 36px rgba(0, 0, 0, 0.55) !important;
+            }
+
+            html[data-theme="light"] .panel-footer {
+                background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), var(--bg-panel) 28%) !important;
+                box-shadow: 0 -18px 36px rgba(15, 23, 42, 0.14) !important;
+            }
+
+            .panel-footer .btn-add,
+            .panel-footer .btn-secondary {
+                width: 100% !important;
+                min-height: 52px !important;
+                padding: 12px 16px !important;
+                flex: 0 0 auto !important;
+                border-radius: 18px !important;
+                font-size: 0.92rem !important;
+            }
+
+            .modal-overlay {
+                align-items: stretch !important;
+                justify-content: center !important;
+                padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+                height: var(--app-height) !important;
+                max-height: var(--app-height) !important;
+                overflow: hidden !important;
+            }
+
+            .modal-content {
+                width: 100% !important;
+                height: calc(var(--app-height) - 16px - env(safe-area-inset-bottom, 0px)) !important;
+                max-height: calc(var(--app-height) - 16px - env(safe-area-inset-bottom, 0px)) !important;
+                border-radius: 22px !important;
+                overflow: hidden !important;
+                display: flex !important;
+                flex-direction: column !important;
+            }
+
+            .modal-header {
+                padding: 16px 16px 12px !important;
+                flex-shrink: 0 !important;
+            }
+
+            .modal-body {
+                flex: 1 1 auto !important;
+                min-height: 0 !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                padding: 16px 16px 18px !important;
+            }
+
+            .modal-footer {
+                flex-shrink: 0 !important;
+                padding: 12px 16px calc(18px + env(safe-area-inset-bottom, 0px)) !important;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            .scanner-modal,
+            .scanner-box,
+            .scanner-content {
+                max-height: calc(var(--app-height) - 16px) !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            :root {
+                --mobile-bottom-space: 126px;
+            }
+
+            .topbar {
+                padding: 12px 14px !important;
+            }
+
+            .logo img {
+                max-height: 42px !important;
+            }
+
+            .app-name {
+                font-size: 1.02rem !important;
+            }
+
+            .controls-bar,
+            .main-wrapper {
+                padding-left: 12px !important;
+                padding-right: 12px !important;
+            }
+
+            .panel-header {
+                padding: 12px 14px 10px !important;
+            }
+
+            .panel-body {
+                padding: 12px 12px 16px !important;
+            }
+
+            .panel-section {
+                padding: 13px !important;
+            }
+
+            .panel-footer {
+                padding-left: 12px !important;
+                padding-right: 12px !important;
+                padding-bottom: calc(var(--mobile-bottom-space) + env(safe-area-inset-bottom, 0px)) !important;
+            }
+
+            .panel-footer .btn-add,
+            .panel-footer .btn-secondary {
+                min-height: 54px !important;
+            }
+        }
+
+        @media (max-height: 700px) and (max-width: 1024px) {
+            :root {
+                --mobile-bottom-space: 138px;
+            }
+
+            .panel-footer {
+                max-height: 52vh !important;
+            }
+
+            .panel-footer .btn-add,
+            .panel-footer .btn-secondary {
+                min-height: 50px !important;
+            }
+        }
+
+</style>
 </head>
 <body class="filters-collapsed">
 <header class="topbar">
@@ -4185,5 +4484,23 @@
             return escapeHtml(valor);
         }
     </script>
+
+<script>
+(function () {
+    function setAppViewportHeight() {
+        var height = window.innerHeight || document.documentElement.clientHeight || screen.height;
+        document.documentElement.style.setProperty('--app-height', height + 'px');
+    }
+
+    setAppViewportHeight();
+    window.addEventListener('resize', setAppViewportHeight, { passive: true });
+    window.addEventListener('orientationchange', function () {
+        setTimeout(setAppViewportHeight, 80);
+        setTimeout(setAppViewportHeight, 350);
+    }, { passive: true });
+    document.addEventListener('visibilitychange', setAppViewportHeight, { passive: true });
+})();
+</script>
+
 </body>
 </html>
