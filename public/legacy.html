@@ -282,7 +282,8 @@
             color: var(--text-faint);
         }
 
-        .search-clear {
+        .search-clear,
+        .search-scan {
             width: 32px;
             height: 32px;
             border-radius: 50%;
@@ -295,7 +296,8 @@
             flex-shrink: 0;
         }
 
-        .search-clear:hover {
+        .search-clear:hover,
+        .search-scan:hover {
             background: var(--bg-soft);
             color: var(--text-main);
         }
@@ -1770,6 +1772,139 @@
             background: var(--bg-soft);
         }
 
+        .search-scan {
+            color: var(--accent);
+        }
+
+        .qr-reader-container {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(2, 6, 23, 0.72);
+            backdrop-filter: blur(10px);
+            padding: 18px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .qr-reader-container[style*="block"],
+        .qr-reader-container.active {
+            display: flex !important;
+        }
+
+        .qr-reader-card {
+            width: min(680px, 100%);
+            max-height: min(92dvh, 760px);
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            box-shadow: 0 28px 90px rgba(0, 0, 0, 0.42);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .qr-reader-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 16px 18px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-panel-soft);
+        }
+
+        .qr-reader-head strong {
+            display: block;
+            font-size: 1rem;
+            color: var(--text-main);
+        }
+
+        .qr-reader-head span {
+            display: block;
+            margin-top: 3px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        .qr-reader-close {
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            background: var(--bg-soft);
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .qr-reader-close:hover {
+            color: var(--text-main);
+            border-color: var(--border-glow);
+        }
+
+        #qr-reader {
+            width: 100%;
+            min-height: 320px;
+            background: #000;
+        }
+
+        #qr-reader video {
+            width: 100% !important;
+            min-height: 320px;
+            object-fit: cover;
+        }
+
+        .qr-reader-status {
+            padding: 12px 16px;
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            line-height: 1.45;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .qr-stop {
+            margin: 0 16px 16px;
+            min-height: 46px;
+            border-radius: 15px;
+            background: var(--danger);
+            color: #fff;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .qr-reader-container {
+                padding: 10px;
+                align-items: stretch;
+            }
+
+            .qr-reader-card {
+                width: 100%;
+                max-height: calc(100dvh - 20px);
+                border-radius: 22px;
+                margin: auto 0;
+            }
+
+            #qr-reader,
+            #qr-reader video {
+                min-height: 360px;
+            }
+
+            .search-box {
+                gap: 7px;
+                padding-right: 10px;
+            }
+
+            .search-clear,
+            .search-scan {
+                width: 36px;
+                height: 36px;
+            }
+        }
+
+
         .qr-reader-container {
             display: none;
             grid-column: 1 / -1;
@@ -2810,6 +2945,147 @@
             }
         }
 
+
+
+        /* Ajustes scanner global - pesquisa, patrimônio e fonte */
+        .search-scan {
+            color: var(--accent) !important;
+        }
+
+        .qr-reader-container {
+            display: none;
+            position: fixed !important;
+            inset: 0 !important;
+            z-index: 9999 !important;
+            background: rgba(2, 6, 23, 0.72) !important;
+            backdrop-filter: blur(10px);
+            padding: 18px !important;
+            align-items: center !important;
+            justify-content: center !important;
+            grid-column: auto !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            overflow: auto !important;
+        }
+
+        .qr-reader-container[style*="block"],
+        .qr-reader-container.active {
+            display: flex !important;
+        }
+
+        .qr-reader-card {
+            width: min(680px, 100%);
+            max-height: min(92dvh, 760px);
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .qr-reader-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 16px 18px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-panel-soft);
+        }
+
+        .qr-reader-head strong {
+            display: block;
+            font-size: 1rem;
+            color: var(--text-main);
+        }
+
+        .qr-reader-head span {
+            display: block;
+            margin-top: 3px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        .qr-reader-close {
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            background: var(--bg-soft);
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .qr-reader-close:hover {
+            color: var(--text-main);
+            border-color: var(--border-glow);
+        }
+
+        .qr-reader-container #qr-reader {
+            width: 100% !important;
+            min-height: 320px !important;
+            background: #000 !important;
+            border-radius: 0 !important;
+        }
+
+        .qr-reader-container #qr-reader video {
+            width: 100% !important;
+            min-height: 320px !important;
+            max-height: 60dvh !important;
+            object-fit: cover !important;
+        }
+
+        .qr-reader-container .qr-reader-status {
+            padding: 12px 16px !important;
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            line-height: 1.45;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .qr-reader-container .qr-stop {
+            margin: 0 16px 16px !important;
+            min-height: 46px;
+            border-radius: 15px;
+            background: var(--danger);
+            color: #fff;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .qr-reader-container {
+                padding: 10px !important;
+                align-items: stretch !important;
+            }
+
+            .qr-reader-card {
+                width: 100%;
+                max-height: calc(100dvh - 20px);
+                border-radius: 22px;
+                margin: auto 0;
+            }
+
+            .qr-reader-container #qr-reader,
+            .qr-reader-container #qr-reader video {
+                min-height: 360px !important;
+            }
+
+            .search-box {
+                gap: 7px;
+                padding-right: 10px;
+            }
+
+            .search-clear,
+            .search-scan {
+                width: 36px;
+                height: 36px;
+            }
+        }
+
 </style>
 </head>
 <body class="filters-collapsed">
@@ -2822,6 +3098,9 @@
 <div class="search-box" role="search">
 <i aria-hidden="true" class="fa-solid fa-magnifying-glass"></i>
 <input aria-label="Pesquisar ativos" autocomplete="off" id="searchInput" oninput="aplicarFiltros()" placeholder="Pesquisar patrimônio, serial, item, marca, local, histórico..." type="text"/>
+<button class="search-scan" onclick="iniciarCameraPesquisa()" title="Ler QR Code ou código de barras para pesquisar" type="button">
+<i class="fa-solid fa-barcode"></i>
+</button>
 <button class="search-clear" onclick="limparBusca()" title="Limpar pesquisa" type="button">
 <i class="fa-solid fa-xmark"></i>
 </button>
@@ -3105,16 +3384,15 @@
 </button>
 </div>
 </div>
-<div class="qr-reader-container" id="qr-reader-container">
-<div id="qr-reader"></div>
-<div class="qr-reader-status" id="qr-reader-status"></div>
-<button class="qr-stop" onclick="pararCamera()" type="button">
-<i class="fa-solid fa-camera-slash"></i> Encerrar leitura
-                            </button>
-</div>
+
 <div class="form-group">
 <label for="form-patrimonio">Patrimônio / Tag</label>
-<input class="form-control" id="form-patrimonio" placeholder="Código interno" type="text"/>
+<div class="input-qr-group">
+<input id="form-patrimonio" placeholder="Use a câmera ou digite o patrimônio" type="text"/>
+<button class="qr-btn" onclick="iniciarCamera('form-patrimonio')" title="Ler patrimônio por QR Code ou código de barras" type="button">
+<i class="fa-solid fa-barcode"></i>
+</button>
+</div>
 </div>
 <div class="form-group">
 <label for="form-local">Local de alocação</label>
@@ -3131,7 +3409,12 @@
 </div>
 <div class="form-group">
 <label for="form-fonte">Fonte / Acessório</label>
-<input class="form-control" id="form-fonte" placeholder="Ex.: Fonte original 65W" type="text"/>
+<div class="input-qr-group">
+<input id="form-fonte" placeholder="Use a câmera ou digite a fonte/acessório" type="text"/>
+<button class="qr-btn" onclick="iniciarCamera('form-fonte')" title="Ler fonte/acessório por QR Code ou código de barras" type="button">
+<i class="fa-solid fa-barcode"></i>
+</button>
+</div>
 </div>
 <div class="form-group">
 <label for="form-qtd">Quantidade mapeada</label>
@@ -3156,6 +3439,24 @@
 </div>
 </div>
 </form>
+</div>
+</div>
+<div class="qr-reader-container" id="qr-reader-container" aria-hidden="true">
+<div class="qr-reader-card">
+<div class="qr-reader-head">
+<div>
+<strong>Leitor de código</strong>
+<span>Aponte a câmera para QR Code ou código de barras.</span>
+</div>
+<button class="qr-reader-close" onclick="pararCamera()" title="Fechar leitor" type="button">
+<i class="fa-solid fa-xmark"></i>
+</button>
+</div>
+<div id="qr-reader"></div>
+<div class="qr-reader-status" id="qr-reader-status"></div>
+<button class="qr-stop" onclick="pararCamera()" type="button">
+<i class="fa-solid fa-camera-slash"></i> Encerrar leitura
+</button>
 </div>
 </div>
 <div class="toast" id="toast">
@@ -3665,6 +3966,49 @@
             const input = document.getElementById('searchInput');
             if (input) input.value = '';
             aplicarFiltros();
+        }
+
+        function iniciarCameraPesquisa() {
+            iniciarCamera('searchInput');
+        }
+
+        function encontrarAtivoPorCodigo(codigo) {
+            const alvo = textoBusca(codigo);
+            if (!alvo) return null;
+
+            const camposPrioritarios = ['id', 'patrimonio', 'serial_number', 'service_tag', 'fonte'];
+
+            const exato = dadosGlobais.find(obj => camposPrioritarios.some(campo => {
+                const valor = textoBusca(obj[campo]);
+                return valor && valor === alvo;
+            }));
+            if (exato) return exato;
+
+            const parcial = dadosGlobais.find(obj => camposPrioritarios.some(campo => {
+                const valor = textoBusca(obj[campo]);
+                return valor && (valor.includes(alvo) || alvo.includes(valor));
+            }));
+            if (parcial) return parcial;
+
+            return dadosGlobais.find(obj => [
+                obj.item, obj.marca, obj.modelo, obj.local, obj.observação, obj.observacao, obj.historico
+            ].some(valor => textoBusca(valor).includes(alvo)));
+        }
+
+        function abrirResultadoScannerPesquisa(valor) {
+            aplicarFiltros();
+
+            const encontrado = encontrarAtivoPorCodigo(valor);
+
+            if (encontrado && encontrado.__uid) {
+                setTimeout(() => {
+                    abrirPainelPeloUid(encontrado.__uid);
+                    mostrarToast('Código encontrado. Abrindo passaporte do ativo.');
+                }, 180);
+                return;
+            }
+
+            mostrarToast('Código lido, mas nenhum ativo correspondente foi encontrado.', true);
         }
 
         function limparFiltros() {
@@ -4438,6 +4782,12 @@
                 input.select();
             }
 
+            if (inputId === 'searchInput') {
+                pararCamera();
+                abrirResultadoScannerPesquisa(valor);
+                return;
+            }
+
             mostrarToast('Código lido e preenchido no campo.');
             pararCamera();
         }
@@ -4652,7 +5002,11 @@
             const container = document.getElementById('qr-reader-container');
             const status = document.getElementById('qr-reader-status');
 
-            if (container) container.style.display = 'block';
+            if (container) {
+                container.style.display = 'block';
+                container.classList.add('active');
+                container.setAttribute('aria-hidden', 'false');
+            }
             if (status) {
                 status.classList.remove('show');
                 status.innerHTML = '';
@@ -4725,7 +5079,11 @@
             qrScanning = false;
 
             if (!manterContainerAberto && reader) reader.innerHTML = '';
-            if (!manterContainerAberto && container) container.style.display = 'none';
+            if (!manterContainerAberto && container) {
+                container.style.display = 'none';
+                container.classList.remove('active');
+                container.setAttribute('aria-hidden', 'true');
+            }
             if (!manterContainerAberto && status) {
                 status.classList.remove('show');
                 status.innerHTML = '';
