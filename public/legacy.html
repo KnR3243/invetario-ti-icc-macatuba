@@ -1864,6 +1864,43 @@
             border-top: 1px solid var(--border-color);
         }
 
+
+
+        .scanner-camera-actions {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            padding: 10px 12px;
+            background: var(--bg-soft);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .scanner-camera-actions button {
+            min-height: 40px;
+            border-radius: 13px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-panel);
+            color: var(--text-main);
+            font-weight: 800;
+            font-size: 0.74rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+        }
+
+        .scanner-camera-actions button:hover {
+            border-color: var(--border-glow);
+            color: var(--accent);
+        }
+
+        @media (max-width: 560px) {
+            .scanner-camera-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .qr-stop {
             margin: 0 16px 16px;
             min-height: 46px;
@@ -3454,6 +3491,17 @@
 </div>
 <div id="qr-reader"></div>
 <div class="qr-reader-status" id="qr-reader-status"></div>
+<div class="scanner-camera-actions" id="scanner-camera-actions">
+<button onclick="melhorarFocoCamera()" type="button" title="Tentar foco contínuo e zoom leve">
+<i class="fa-solid fa-crosshairs"></i> Melhorar foco
+</button>
+<button onclick="trocarCameraScanner()" type="button" title="Alternar câmera traseira/frontal">
+<i class="fa-solid fa-camera-rotate"></i> Trocar câmera
+</button>
+<button onclick="alternarLanternaScanner()" type="button" title="Ligar/desligar lanterna quando suportado">
+<i class="fa-solid fa-lightbulb"></i> Lanterna
+</button>
+</div>
 <button class="qr-stop" onclick="pararCamera()" type="button">
 <i class="fa-solid fa-camera-slash"></i> Encerrar leitura
 </button>
@@ -3479,6 +3527,11 @@
         let nativeQrVideo = null;
         let nativeScanRaf = null;
         let nativeDetector = null;
+        let cameraTrackAtiva = null;
+        let cameraTorchLigada = false;
+        let cameraZoomNivel = 1;
+        let cameraDeviceIdPreferido = null;
+        let cameraDispositivosVideo = [];
         let ultimoScanTs = 0;
         let ultimoSyncTimer = null;
         let atualizacaoAutomaticaTimer = null;
@@ -4873,6 +4926,172 @@
             return desejados;
         }
 
+
+        async function listarCamerasDisponiveis() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return [];
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                cameraDispositivosVideo = devices.filter(device => device.kind === 'videoinput');
+                return cameraDispositivosVideo;
+            } catch (e) {
+                return cameraDispositivosVideo || [];
+            }
+        }
+
+        function montarConstraintsCamera(deviceId) {
+            if (deviceId) {
+                return {
+                    audio: false,
+                    video: {
+                        deviceId: { exact: deviceId },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                        frameRate: { ideal: 30 }
+                    }
+                };
+            }
+
+            return {
+                audio: false,
+                video: {
+                    facingMode: { ideal: 'environment' },
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
+                    frameRate: { ideal: 30 }
+                }
+            };
+        }
+
+        async function otimizarStreamCamera(stream) {
+            if (!stream) return;
+            const tracks = stream.getVideoTracks ? stream.getVideoTracks() : [];
+            const track = tracks && tracks[0];
+            if (!track) return;
+
+            cameraTrackAtiva = track;
+            cameraTorchLigada = false;
+
+            let caps = {};
+            try { caps = track.getCapabilities ? track.getCapabilities() : {}; } catch (e) { caps = {}; }
+
+            const advanced = [];
+
+            if (Array.isArray(caps.focusMode)) {
+                if (caps.focusMode.includes('continuous')) advanced.push({ focusMode: 'continuous' });
+                else if (caps.focusMode.includes('single-shot')) advanced.push({ focusMode: 'single-shot' });
+            }
+
+            if (Array.isArray(caps.exposureMode) && caps.exposureMode.includes('continuous')) {
+                advanced.push({ exposureMode: 'continuous' });
+            }
+
+            if (Array.isArray(caps.whiteBalanceMode) && caps.whiteBalanceMode.includes('continuous')) {
+                advanced.push({ whiteBalanceMode: 'continuous' });
+            }
+
+            if (caps.zoom && typeof caps.zoom.min === 'number' && typeof caps.zoom.max === 'number') {
+                const zoomIdeal = Math.min(caps.zoom.max, Math.max(caps.zoom.min, Math.min(2, caps.zoom.max)));
+                cameraZoomNivel = zoomIdeal;
+                advanced.push({ zoom: zoomIdeal });
+            }
+
+            if (advanced.length) {
+                try { await track.applyConstraints({ advanced }); } catch (e) {}
+            }
+
+            const dicas = [];
+            if (Array.isArray(caps.focusMode)) dicas.push('foco contínuo');
+            if (caps.zoom) dicas.push('zoom leve');
+            if (caps.torch) dicas.push('lanterna disponível');
+
+            atualizarStatusCamera(
+                dicas.length
+                    ? `Câmera otimizada (${dicas.join(', ')}). No S24+, mantenha o código a 15-25 cm e toque em "Melhorar foco" se a imagem ficar borrada.`
+                    : 'Câmera ativa. Mantenha o código a 15-25 cm, com boa luz, e tente o botão "Trocar câmera" se a imagem ficar sem foco.'
+            );
+        }
+
+        async function melhorarFocoCamera() {
+            if (!cameraTrackAtiva) {
+                mostrarToast('Abra o scanner primeiro para ajustar o foco.', true);
+                return;
+            }
+
+            let caps = {};
+            try { caps = cameraTrackAtiva.getCapabilities ? cameraTrackAtiva.getCapabilities() : {}; } catch (e) { caps = {}; }
+
+            const advanced = [];
+
+            if (Array.isArray(caps.focusMode)) {
+                if (caps.focusMode.includes('single-shot')) advanced.push({ focusMode: 'single-shot' });
+                if (caps.focusMode.includes('continuous')) advanced.push({ focusMode: 'continuous' });
+            }
+
+            if (caps.zoom && typeof caps.zoom.min === 'number' && typeof caps.zoom.max === 'number') {
+                const proximoZoom = Math.min(caps.zoom.max, Math.max(caps.zoom.min, (cameraZoomNivel || 1) + 0.35));
+                cameraZoomNivel = proximoZoom;
+                advanced.push({ zoom: proximoZoom });
+            }
+
+            if (!advanced.length) {
+                atualizarStatusCamera('Este navegador/câmera não expôs controle manual de foco. Tente afastar um pouco o celular, limpar a lente ou usar o botão "Trocar câmera".', true);
+                return;
+            }
+
+            try {
+                await cameraTrackAtiva.applyConstraints({ advanced });
+                atualizarStatusCamera('Ajuste de foco/zoom aplicado. Aproxime o código lentamente até ficar nítido.');
+            } catch (e) {
+                atualizarStatusCamera('Não foi possível aplicar foco manual nesta câmera. Tente trocar a câmera ou melhorar a iluminação.', true);
+            }
+        }
+
+        async function alternarLanternaScanner() {
+            if (!cameraTrackAtiva) {
+                mostrarToast('Abra o scanner primeiro para usar a lanterna.', true);
+                return;
+            }
+
+            let caps = {};
+            try { caps = cameraTrackAtiva.getCapabilities ? cameraTrackAtiva.getCapabilities() : {}; } catch (e) { caps = {}; }
+
+            if (!caps.torch) {
+                atualizarStatusCamera('Lanterna não disponível neste navegador/câmera.', true);
+                return;
+            }
+
+            try {
+                cameraTorchLigada = !cameraTorchLigada;
+                await cameraTrackAtiva.applyConstraints({ advanced: [{ torch: cameraTorchLigada }] });
+                atualizarStatusCamera(cameraTorchLigada ? 'Lanterna ligada. Aponte para o código.' : 'Lanterna desligada.');
+            } catch (e) {
+                atualizarStatusCamera('Não foi possível alternar a lanterna neste dispositivo.', true);
+            }
+        }
+
+        async function trocarCameraScanner() {
+            const cameras = await listarCamerasDisponiveis();
+            if (!cameras || cameras.length < 2) {
+                atualizarStatusCamera('Não encontrei outra câmera para alternar. Tente afastar o aparelho ou usar melhor iluminação.', true);
+                return;
+            }
+
+            let atual = '';
+            try { atual = cameraTrackAtiva && cameraTrackAtiva.getSettings ? cameraTrackAtiva.getSettings().deviceId : ''; } catch (e) {}
+
+            let idx = cameras.findIndex(cam => cam.deviceId === atual || cam.deviceId === cameraDeviceIdPreferido);
+            if (idx < 0) idx = 0;
+
+            const proxima = cameras[(idx + 1) % cameras.length];
+            cameraDeviceIdPreferido = proxima.deviceId;
+
+            const alvo = qrInputAlvo;
+            atualizarStatusCamera('Trocando câmera...');
+
+            try { await pararCamera(true); } catch (e) {}
+            if (alvo) await iniciarCamera(alvo);
+        }
+
         async function iniciarScannerNativo(inputId) {
             if (!('BarcodeDetector' in window)) {
                 throw new Error('BarcodeDetector indisponível neste navegador.');
@@ -4900,17 +5119,12 @@
             reader.appendChild(nativeQrVideo);
             reader.appendChild(frame);
 
-            nativeQrStream = await navigator.mediaDevices.getUserMedia({
-                audio: false,
-                video: {
-                    facingMode: { ideal: 'environment' },
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                }
-            });
+            nativeQrStream = await navigator.mediaDevices.getUserMedia(montarConstraintsCamera(cameraDeviceIdPreferido));
 
             nativeQrVideo.srcObject = nativeQrStream;
             await nativeQrVideo.play();
+            await otimizarStreamCamera(nativeQrStream);
+            await listarCamerasDisponiveis();
 
             qrScanning = true;
             ultimoScanTs = 0;
@@ -4981,20 +5195,33 @@
             const onFailure = () => {};
 
             try {
-                await html5Qrcode.start({ facingMode: 'environment' }, config, onSuccess, onFailure);
+                if (cameraDeviceIdPreferido) {
+                    await html5Qrcode.start(cameraDeviceIdPreferido, config, onSuccess, onFailure);
+                } else {
+                    await html5Qrcode.start({ facingMode: 'environment' }, config, onSuccess, onFailure);
+                }
             } catch (firstError) {
                 const cameras = await Html5Qrcode.getCameras();
                 if (!cameras || !cameras.length) throw firstError;
 
                 const cameraPreferida =
-                    cameras.find(cam => /back|rear|environment|traseira|ambiente/i.test(cam.label || '')) ||
+                    (cameraDeviceIdPreferido && cameras.find(cam => cam.id === cameraDeviceIdPreferido)) ||
+                    cameras.find(cam => /back|rear|environment|traseira|ambiente|wide|tele/i.test(cam.label || '')) ||
                     cameras[0];
 
+                cameraDeviceIdPreferido = cameraPreferida.id;
                 await html5Qrcode.start(cameraPreferida.id, config, onSuccess, onFailure);
             }
 
             qrScanning = true;
-            atualizarStatusCamera('Câmera ativa. Centralize o QR Code ou código de barras dentro da área destacada.');
+            await listarCamerasDisponiveis();
+            try {
+                const video = document.querySelector('#qr-reader video');
+                if (video && video.srcObject) await otimizarStreamCamera(video.srcObject);
+                else atualizarStatusCamera('Câmera ativa. Centralize o QR Code ou código de barras dentro da área destacada.');
+            } catch (e) {
+                atualizarStatusCamera('Câmera ativa. Centralize o QR Code ou código de barras dentro da área destacada.');
+            }
         }
 
         async function iniciarCamera(inputId) {
@@ -5068,6 +5295,9 @@
             }
 
             nativeDetector = null;
+            cameraTrackAtiva = null;
+            cameraTorchLigada = false;
+            cameraZoomNivel = 1;
 
             if (html5Qrcode && qrScanning) {
                 try {

@@ -40,3 +40,5 @@ apps-script/Code.gs
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+**/desktop.ini
